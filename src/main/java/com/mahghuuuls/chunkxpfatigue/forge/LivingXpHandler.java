@@ -18,11 +18,13 @@ public final class LivingXpHandler {
 
     private final XpFatigueService fatigueService;
     private final double recoveryMinutesPerPressure;
+    private final double maximumPressure;
     private final DeathDebugLogger debugLogger;
 
     public LivingXpHandler(ValidatedFatigueConfig config) {
         this.fatigueService = new XpFatigueService(config);
         this.recoveryMinutesPerPressure = config.getRecoveryMinutesPerPressure();
+        this.maximumPressure = config.getMaximumPressure();
         this.debugLogger = new DeathDebugLogger(config.isDebugLoggingEnabled());
     }
 
@@ -36,7 +38,10 @@ public final class LivingXpHandler {
         }
 
         ChunkPressureKey key = keyFor(entity);
-        PressureStore store = PressureWorldData.get(world, recoveryMinutesPerPressure);
+        PressureStore store = PressureWorldData.get(world, recoveryMinutesPerPressure, maximumPressure);
+        if (!store.isWritable()) {
+            return;
+        }
         FatigueCalculation calculation = fatigueService.process(store, key, payableXp);
         event.setDroppedExperience(calculation.getAdjustedXp());
         debugLogger.log(entity, key, calculation);

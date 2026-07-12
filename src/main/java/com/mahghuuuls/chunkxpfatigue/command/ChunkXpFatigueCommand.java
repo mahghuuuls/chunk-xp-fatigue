@@ -22,7 +22,8 @@ public final class ChunkXpFatigueCommand extends CommandBase {
     private final PressureStoreProvider storeProvider;
 
     public ChunkXpFatigueCommand(ValidatedFatigueConfig config) {
-        this(config, new WorldPressureStoreProvider(config.getRecoveryMinutesPerPressure()));
+        this(config, new WorldPressureStoreProvider(config.getRecoveryMinutesPerPressure(),
+                config.getMaximumPressure()));
     }
 
     ChunkXpFatigueCommand(ValidatedFatigueConfig config, PressureStoreProvider storeProvider) {
@@ -51,15 +52,24 @@ public final class ChunkXpFatigueCommand extends CommandBase {
                     key.getDimension(), key.getChunkX(), key.getChunkZ(), pressure,
                     normalized * 100.0D, multiplier * 100.0D));
         } else if ("set".equals(args[0])) {
+            requireWritable(data);
             if (args.length != 2 && args.length != 5) throw new WrongUsageException(getUsage(sender));
             double value = parseDouble(args[1], 0.0D, config.getMaximumPressure());
             ChunkPressureKey key = target(sender, args, 2);
             data.setPressure(key, value);
             reply(sender, "Set pressure to " + value + " for " + key);
         } else if ("clear".equals(args[0])) {
+            requireWritable(data);
             clear(sender, args, data);
         } else {
             throw new WrongUsageException(getUsage(sender));
+        }
+    }
+
+    private static void requireWritable(PressureStore store) throws CommandException {
+        if (!store.isWritable()) {
+            throw new CommandException(
+                    "Pressure data uses a newer unsupported schema; mutations are disabled");
         }
     }
 

@@ -31,7 +31,8 @@ public final class OverlaySyncHandler {
         for (EntityPlayerMP player : server.getPlayerList().getPlayers()) {
             ChunkPressureKey key = new ChunkPressureKey(player.dimension,
                     MathHelper.floor(player.posX) >> 4, MathHelper.floor(player.posZ) >> 4);
-            double pressure = PressureWorldData.get(player.world, config.getRecoveryMinutesPerPressure())
+            double pressure = PressureWorldData.get(player.world, config.getRecoveryMinutesPerPressure(),
+                    config.getMaximumPressure())
                     .getPressure(key);
             double normalized = pressure / config.getMaximumPressure();
             network.send(player, new OverlaySnapshot(normalized,

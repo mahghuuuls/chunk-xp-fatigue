@@ -11,9 +11,11 @@ import net.minecraftforge.fml.common.gameevent.TickEvent;
 public final class CommonEventHandler {
 
     private final double recoveryMinutesPerPressure;
+    private final double maximumPressure;
 
     public CommonEventHandler(ValidatedFatigueConfig config) {
         this.recoveryMinutesPerPressure = config.getRecoveryMinutesPerPressure();
+        this.maximumPressure = config.getMaximumPressure();
     }
 
     @SubscribeEvent
@@ -27,7 +29,7 @@ public final class CommonEventHandler {
         }
         WorldServer overworld = server.getWorld(0);
         if (overworld != null) {
-            PressureWorldData.get(overworld, recoveryMinutesPerPressure).advanceServerTick();
+            PressureWorldData.get(overworld, recoveryMinutesPerPressure, maximumPressure).advanceServerTick();
         }
     }
 }

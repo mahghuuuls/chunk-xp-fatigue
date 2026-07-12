@@ -8,6 +8,8 @@ import net.minecraft.world.World;
 import net.minecraft.world.storage.MapStorage;
 import net.minecraft.world.storage.WorldSavedData;
 import net.minecraftforge.common.util.Constants;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -15,9 +17,11 @@ import java.util.PriorityQueue;
 import java.util.Iterator;
 
 public final class PressureWorldData extends WorldSavedData implements PressureStore {
+    private static final Logger LOGGER = LogManager.getLogger(Tags.MOD_NAME);
 
     public static final String DATA_NAME = Tags.MOD_ID + "_pressure";
     static final int CLEANUP_BUDGET_PER_TICK = 1024;
+    private static final int QUEUE_STALE_ALLOWANCE = 4096;
     private static final int SCHEMA_VERSION = 2;
 
     private static final String TAG_SCHEMA = "schema";
@@ -37,7 +41,9 @@ public final class PressureWorldData extends WorldSavedData implements PressureS
     private long uptimeTicks;
     private long nextVersion = 1L;
     private double recoveryMinutesPerPressure;
+    private double maximumPressure = Double.POSITIVE_INFINITY;
     private boolean recoveryConfigured;
+    private NBTTagCompound unsupportedFutureData;
 
     public PressureWorldData() {
         super(DATA_NAME);
@@ -47,7 +53,8 @@ public final class PressureWorldData extends WorldSavedData implements PressureS
         super(name);
     }
 
-    public static PressureWorldData get(World world, double recoveryMinutesPerPressure) {
+    public static PressureWorldData get(World world, double recoveryMinutesPerPressure,
+                                        double maximumPressure) {
         if (world == null || world.isRemote) {
             throw new IllegalArgumentException("PressureWorldData requires a logical-server world");
         }
@@ -60,18 +67,28 @@ public final class PressureWorldData extends WorldSavedData implements PressureS
             data = new PressureWorldData();
             storage.setData(DATA_NAME, data);
         }
-        data.configureRecovery(recoveryMinutesPerPressure);
+        data.configure(recoveryMinutesPerPressure, maximumPressure);
         return data;
     }
 
     void configureRecovery(double minutesPerPressure) {
+        configure(minutesPerPressure, Double.MAX_VALUE);
+    }
+
+    void configure(double minutesPerPressure, double configuredMaximum) {
         validateRecoveryRate(minutesPerPressure);
+        if (!isValidStoredPressure(configuredMaximum)) {
+            throw new IllegalArgumentException("maximumPressure must be finite and positive");
+        }
         if (recoveryConfigured
-                && Double.compare(recoveryMinutesPerPressure, minutesPerPressure) == 0) {
+                && Double.compare(recoveryMinutesPerPressure, minutesPerPressure) == 0
+                && Double.compare(maximumPressure, configuredMaximum) == 0) {
             return;
         }
         recoveryMinutesPerPressure = minutesPerPressure;
+        maximumPressure = configuredMaximum;
         recoveryConfigured = true;
+        clampRecordsToMaximum();
         rebuildCleanupQueue();
     }
 
@@ -79,6 +96,7 @@ public final class PressureWorldData extends WorldSavedData implements PressureS
         if (!recoveryConfigured) {
             throw new IllegalStateException("recovery must be configured before ticking");
         }
+        if (unsupportedFutureData != null) return;
         if (uptimeTicks < Long.MAX_VALUE) {
             uptimeTicks++;
         }
@@ -106,13 +124,14 @@ public final class PressureWorldData extends WorldSavedData implements PressureS
     public void setPressure(ChunkPressureKey key, double pressure) {
         requireKey(key);
         validatePressure(pressure);
+        if (unsupportedFutureData != null) return;
         if (pressure == 0.0D) {
             if (pressureByChunk.remove(key) != null) {
                 markDirty();
             }
             return;
         }
-        replaceRecord(key, pressure, uptimeTicks);
+        replaceRecord(key, Math.min(pressure, maximumPressure), uptimeTicks);
     }
 
     int getRecordCount() {
@@ -128,6 +147,7 @@ public final class PressureWorldData extends WorldSavedData implements PressureS
     }
 
     public int clearDimension(int dimension) {
+        if (unsupportedFutureData != null) return 0;
         int removed = 0;
         Iterator<ChunkPressureKey> iterator = pressureByChunk.keySet().iterator();
         while (iterator.hasNext()) {
@@ -144,6 +164,7 @@ public final class PressureWorldData extends WorldSavedData implements PressureS
     }
 
     public int clearAll() {
+        if (unsupportedFutureData != null) return 0;
         int removed = pressureByChunk.size();
         if (removed > 0) {
             pressureByChunk.clear();
@@ -178,22 +199,67 @@ public final class PressureWorldData extends WorldSavedData implements PressureS
     }
 
     @Override
+    public boolean isWritable() {
+        return unsupportedFutureData == null;
+    }
+
+    @Override
     public void readFromNBT(NBTTagCompound compound) {
         pressureByChunk.clear();
         cleanupQueue.clear();
-        uptimeTicks = Math.max(0L, compound.getLong(TAG_UPTIME));
+        unsupportedFutureData = null;
         nextVersion = 1L;
+        if (!compound.hasKey(TAG_SCHEMA, Constants.NBT.TAG_INT)) {
+            LOGGER.error("Pressure data ignored: missing integer schema");
+            uptimeTicks = 0L;
+            return;
+        }
+        int schema = compound.getInteger(TAG_SCHEMA);
+        if (schema < 1 || schema > SCHEMA_VERSION) {
+            LOGGER.error("Pressure data ignored: unsupported schema {}", schema);
+            if (schema > SCHEMA_VERSION) {
+                unsupportedFutureData = (NBTTagCompound) compound.copy();
+            }
+            uptimeTicks = 0L;
+            return;
+        }
+        if (schema >= 2 && !compound.hasKey(TAG_UPTIME, Constants.NBT.TAG_LONG)) {
+            LOGGER.error("Pressure data ignored: schema {} missing long uptime", schema);
+            uptimeTicks = 0L;
+            return;
+        }
+        uptimeTicks = schema == 1 ? 0L : compound.getLong(TAG_UPTIME);
+        if (uptimeTicks < 0L) {
+            LOGGER.error("Pressure data ignored: negative uptime {}", uptimeTicks);
+            uptimeTicks = 0L;
+            return;
+        }
+        if (!compound.hasKey(TAG_RECORDS, Constants.NBT.TAG_LIST)) {
+            LOGGER.error("Pressure data ignored: missing records list");
+            return;
+        }
         double storedRecoveryRate = compound.getDouble(TAG_RECOVERY_RATE);
         boolean hasStoredRecoveryRate = compound.hasKey(TAG_RECOVERY_RATE, Constants.NBT.TAG_DOUBLE)
                 && isValidRecoveryRate(storedRecoveryRate);
+        if (schema >= 2 && !hasStoredRecoveryRate) {
+            LOGGER.warn("Pressure data has no valid stored recovery rate; preserving raw pressure "
+                    + "and discarding ambiguous elapsed recovery");
+        }
         NBTTagList records = compound.getTagList(TAG_RECORDS, Constants.NBT.TAG_COMPOUND);
         for (int index = 0; index < records.tagCount(); index++) {
             NBTTagCompound stored = records.getCompoundTagAt(index);
+            if (!hasRequiredRecordFields(stored, schema)) {
+                LOGGER.warn("Skipping pressure record {}: missing or mistyped required field", index);
+                continue;
+            }
             double pressure = stored.getDouble(TAG_PRESSURE);
             long lastUpdate = stored.hasKey(TAG_LAST_UPDATE, Constants.NBT.TAG_LONG)
                     ? stored.getLong(TAG_LAST_UPDATE)
                     : uptimeTicks;
             if (!isValidStoredPressure(pressure) || lastUpdate < 0L || lastUpdate > uptimeTicks) {
+                LOGGER.warn("Skipping pressure record {} at {}:{}:{}: invalid pressure or timestamp",
+                        index, stored.getInteger(TAG_DIMENSION), stored.getInteger(TAG_CHUNK_X),
+                        stored.getInteger(TAG_CHUNK_Z));
                 continue;
             }
             if (hasStoredRecoveryRate) {
@@ -206,12 +272,18 @@ public final class PressureWorldData extends WorldSavedData implements PressureS
                 if (pressure <= 0.0D) {
                     continue;
                 }
+            } else if (schema >= 2) {
+                lastUpdate = uptimeTicks;
             }
             ChunkPressureKey key = new ChunkPressureKey(
                     stored.getInteger(TAG_DIMENSION),
                     stored.getInteger(TAG_CHUNK_X),
                     stored.getInteger(TAG_CHUNK_Z)
             );
+            if (pressureByChunk.containsKey(key)) {
+                LOGGER.warn("Skipping duplicate pressure record {} for {}", index, key);
+                continue;
+            }
             pressureByChunk.put(key, new ChunkPressureRecord(pressure, lastUpdate, nextVersion++));
         }
         if (recoveryConfigured) {
@@ -221,6 +293,9 @@ public final class PressureWorldData extends WorldSavedData implements PressureS
 
     @Override
     public NBTTagCompound writeToNBT(NBTTagCompound compound) {
+        if (unsupportedFutureData != null) {
+            return (NBTTagCompound) unsupportedFutureData.copy();
+        }
         compound.setInteger(TAG_SCHEMA, SCHEMA_VERSION);
         compound.setLong(TAG_UPTIME, uptimeTicks);
         if (recoveryConfigured) {
@@ -249,6 +324,7 @@ public final class PressureWorldData extends WorldSavedData implements PressureS
         );
         ChunkPressureRecord current = pressureByChunk.get(key);
         scheduleCleanup(key, current);
+        compactCleanupQueueIfNeeded();
         if (previous == null
                 || Double.compare(previous.getPressure(), pressure) != 0
                 || previous.getLastUpdateTick() != updateTick) {
@@ -277,6 +353,21 @@ public final class PressureWorldData extends WorldSavedData implements PressureS
         }
     }
 
+    private void compactCleanupQueueIfNeeded() {
+        long maximumUsefulSize = pressureByChunk.size() * 2L + QUEUE_STALE_ALLOWANCE;
+        if (cleanupQueue.size() > maximumUsefulSize) rebuildCleanupQueue();
+    }
+
+    private void clampRecordsToMaximum() {
+        for (Map.Entry<ChunkPressureKey, ChunkPressureRecord> entry : pressureByChunk.entrySet()) {
+            ChunkPressureRecord record = entry.getValue();
+            if (record.getPressure() > maximumPressure) {
+                entry.setValue(new ChunkPressureRecord(maximumPressure, uptimeTicks, nextVersion++));
+                markDirty();
+            }
+        }
+    }
+
     private void scheduleCleanup(ChunkPressureKey key, ChunkPressureRecord record) {
         if (!recoveryConfigured || recoveryMinutesPerPressure == 0.0D) {
             return;
@@ -300,6 +391,14 @@ public final class PressureWorldData extends WorldSavedData implements PressureS
 
     private static boolean isValidStoredPressure(double pressure) {
         return !Double.isNaN(pressure) && !Double.isInfinite(pressure) && pressure > 0.0D;
+    }
+
+    private static boolean hasRequiredRecordFields(NBTTagCompound stored, int schema) {
+        return stored.hasKey(TAG_DIMENSION, Constants.NBT.TAG_INT)
+                && stored.hasKey(TAG_CHUNK_X, Constants.NBT.TAG_INT)
+                && stored.hasKey(TAG_CHUNK_Z, Constants.NBT.TAG_INT)
+                && stored.hasKey(TAG_PRESSURE, Constants.NBT.TAG_DOUBLE)
+                && (schema == 1 || stored.hasKey(TAG_LAST_UPDATE, Constants.NBT.TAG_LONG));
     }
 
     private static void validatePressure(double pressure) {
