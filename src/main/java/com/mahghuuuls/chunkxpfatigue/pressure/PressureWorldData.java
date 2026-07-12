@@ -12,6 +12,7 @@ import net.minecraftforge.common.util.Constants;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.PriorityQueue;
+import java.util.Iterator;
 
 public final class PressureWorldData extends WorldSavedData implements PressureStore {
 
@@ -124,6 +125,32 @@ public final class PressureWorldData extends WorldSavedData implements PressureS
 
     int getCleanupQueueSize() {
         return cleanupQueue.size();
+    }
+
+    public int clearDimension(int dimension) {
+        int removed = 0;
+        Iterator<ChunkPressureKey> iterator = pressureByChunk.keySet().iterator();
+        while (iterator.hasNext()) {
+            if (iterator.next().getDimension() == dimension) {
+                iterator.remove();
+                removed++;
+            }
+        }
+        if (removed > 0) {
+            rebuildCleanupQueue();
+            markDirty();
+        }
+        return removed;
+    }
+
+    public int clearAll() {
+        int removed = pressureByChunk.size();
+        if (removed > 0) {
+            pressureByChunk.clear();
+            cleanupQueue.clear();
+            markDirty();
+        }
+        return removed;
     }
 
     int processDueCleanup(int budget) {

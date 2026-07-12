@@ -145,6 +145,20 @@ class PressureWorldDataTest {
         assertEquals(1, restored.getCleanupQueueSize());
     }
 
+    @Test
+    void bulkClearsReportCountsAndRespectDimensionScope() {
+        PressureWorldData data = configured(0.0D);
+        data.setPressure(new ChunkPressureKey(0, 1, 1), 2.0D);
+        data.setPressure(new ChunkPressureKey(0, 2, 2), 3.0D);
+        data.setPressure(new ChunkPressureKey(-1, 1, 1), 4.0D);
+
+        assertEquals(2, data.clearDimension(0));
+        assertEquals(1, data.getRecordCount());
+        assertEquals(0, data.clearDimension(0));
+        assertEquals(1, data.clearAll());
+        assertEquals(0, data.clearAll());
+    }
+
     private static PressureWorldData configured(double recoveryMinutesPerPressure) {
         PressureWorldData data = new PressureWorldData();
         data.configureRecovery(recoveryMinutesPerPressure);

@@ -134,5 +134,17 @@ class XpFatigueServiceTest {
         public void setPressure(ChunkPressureKey key, double pressure) {
             values.put(key, pressure);
         }
+
+        @Override
+        public int clearDimension(int dimension) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public int clearAll() {
+            int count = values.size();
+            values.clear();
+            return count;
+        }
     }
 }
