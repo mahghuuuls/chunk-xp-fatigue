@@ -1,6 +1,8 @@
 package com.mahghuuuls.chunkxpfatigue.fatigue;
 
 import com.mahghuuuls.chunkxpfatigue.config.ValidatedFatigueConfig;
+import com.mahghuuuls.chunkxpfatigue.pressure.ChunkPressureKey;
+import com.mahghuuuls.chunkxpfatigue.pressure.PressureStore;
 
 public final class XpFatigueService {
 
@@ -33,6 +35,22 @@ public final class XpFatigueService {
                 pressureAfter,
                 multiplier
         );
+    }
+
+    public FatigueCalculation process(
+            PressureStore store,
+            ChunkPressureKey key,
+            int payableXp
+    ) {
+        if (store == null) {
+            throw new IllegalArgumentException("store cannot be null");
+        }
+        if (key == null) {
+            throw new IllegalArgumentException("key cannot be null");
+        }
+        FatigueCalculation calculation = calculate(payableXp, store.getPressure(key));
+        store.setPressure(key, calculation.getPressureAfter());
+        return calculation;
     }
 
     private static double clamp(double value, double minimum, double maximum) {

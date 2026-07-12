@@ -1,7 +1,12 @@
 package com.mahghuuuls.chunkxpfatigue.fatigue;
 
 import com.mahghuuuls.chunkxpfatigue.config.ValidatedFatigueConfig;
+import com.mahghuuuls.chunkxpfatigue.pressure.ChunkPressureKey;
+import com.mahghuuuls.chunkxpfatigue.pressure.PressureStore;
 import org.junit.jupiter.api.Test;
+
+import java.util.HashMap;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -87,6 +92,20 @@ class XpFatigueServiceTest {
         assertThrows(IllegalArgumentException.class, () -> service.calculate(-1, 0.0D));
     }
 
+    @Test
+    void processReadsPreContributionPressureAndPersistsPostContributionPressure() {
+        XpFatigueService service = new XpFatigueService(defaultConfig());
+        InMemoryPressureStore store = new InMemoryPressureStore();
+        ChunkPressureKey key = new ChunkPressureKey(0, 4, -2);
+        store.setPressure(key, 60.0D);
+
+        FatigueCalculation result = service.process(store, key, 7);
+
+        assertEquals(60.0D, result.getPressureBefore(), 0.0D);
+        assertEquals(61.0D, result.getPressureAfter(), 0.0D);
+        assertEquals(61.0D, store.getPressure(key), 0.0D);
+    }
+
     private static ValidatedFatigueConfig defaultConfig() {
         return ValidatedFatigueConfig.validate(
                 1.0D,
@@ -98,5 +117,22 @@ class XpFatigueServiceTest {
                 false,
                 false
         );
+    }
+
+    private static final class InMemoryPressureStore implements PressureStore {
+
+        private final Map<ChunkPressureKey, Double> values =
+                new HashMap<ChunkPressureKey, Double>();
+
+        @Override
+        public double getPressure(ChunkPressureKey key) {
+            Double value = values.get(key);
+            return value == null ? 0.0D : value;
+        }
+
+        @Override
+        public void setPressure(ChunkPressureKey key, double pressure) {
+            values.put(key, pressure);
+        }
     }
 }
