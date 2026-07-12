@@ -9,6 +9,10 @@ import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.event.FMLPreInitializationEvent;
 import net.minecraftforge.fml.common.event.FMLServerStartingEvent;
 import com.mahghuuuls.chunkxpfatigue.command.ChunkXpFatigueCommand;
+import com.mahghuuuls.chunkxpfatigue.forge.OverlaySyncHandler;
+import com.mahghuuuls.chunkxpfatigue.network.ModNetwork;
+import com.mahghuuuls.chunkxpfatigue.proxy.CommonProxy;
+import net.minecraftforge.fml.common.SidedProxy;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -22,6 +26,11 @@ public final class ChunkXpFatigueMod {
 
     public static final Logger LOGGER = LogManager.getLogger(Tags.MOD_NAME);
     private ValidatedFatigueConfig config;
+    private ModNetwork network;
+
+    @SidedProxy(clientSide = "com.mahghuuuls.chunkxpfatigue.proxy.ClientProxy",
+            serverSide = "com.mahghuuuls.chunkxpfatigue.proxy.CommonProxy")
+    public static CommonProxy PROXY;
 
     @Mod.EventHandler
     public void preInit(FMLPreInitializationEvent event) {
@@ -34,6 +43,11 @@ public final class ChunkXpFatigueMod {
         }
         MinecraftForge.EVENT_BUS.register(new LivingXpHandler(config));
         MinecraftForge.EVENT_BUS.register(new CommonEventHandler(config));
+        network = new ModNetwork(PROXY.overlayHandler());
+        PROXY.registerClientEvents();
+        if (config.isDebugOverlayEnabled()) {
+            MinecraftForge.EVENT_BUS.register(new OverlaySyncHandler(config, network));
+        }
     }
 
     @Mod.EventHandler
