@@ -17,9 +17,13 @@ import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 public final class LivingXpHandler {
 
     private final XpFatigueService fatigueService;
+    private final double recoveryMinutesPerPressure;
+    private final DeathDebugLogger debugLogger;
 
     public LivingXpHandler(ValidatedFatigueConfig config) {
         this.fatigueService = new XpFatigueService(config);
+        this.recoveryMinutesPerPressure = config.getRecoveryMinutesPerPressure();
+        this.debugLogger = new DeathDebugLogger(config.isDebugLoggingEnabled());
     }
 
     @SubscribeEvent(priority = EventPriority.LOWEST)
@@ -32,9 +36,10 @@ public final class LivingXpHandler {
         }
 
         ChunkPressureKey key = keyFor(entity);
-        PressureStore store = PressureWorldData.get(world);
+        PressureStore store = PressureWorldData.get(world, recoveryMinutesPerPressure);
         FatigueCalculation calculation = fatigueService.process(store, key, payableXp);
         event.setDroppedExperience(calculation.getAdjustedXp());
+        debugLogger.log(entity, key, calculation);
     }
 
     static boolean shouldProcess(boolean remoteWorld, boolean playerEntity, int payableXp) {

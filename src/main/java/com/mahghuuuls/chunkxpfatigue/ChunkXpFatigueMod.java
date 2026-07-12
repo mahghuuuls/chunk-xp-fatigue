@@ -3,6 +3,7 @@ package com.mahghuuuls.chunkxpfatigue;
 import com.mahghuuuls.chunkxpfatigue.config.FatigueConfig;
 import com.mahghuuuls.chunkxpfatigue.config.ValidatedFatigueConfig;
 import com.mahghuuuls.chunkxpfatigue.forge.LivingXpHandler;
+import com.mahghuuuls.chunkxpfatigue.forge.CommonEventHandler;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.event.FMLPreInitializationEvent;
@@ -29,5 +30,6 @@ public final class ChunkXpFatigueMod {
             LOGGER.error("Configuration: {}", error);
         }
         MinecraftForge.EVENT_BUS.register(new LivingXpHandler(config));
+        MinecraftForge.EVENT_BUS.register(new CommonEventHandler(config));
     }
 }
