@@ -60,7 +60,9 @@ final class DeathDebugLogger {
         return String.format(
                 Locale.ROOT,
                 "XP fatigue mob=%s dimension=%d chunk=(%d,%d) inputXp=%d adjustedXp=%d "
-                        + "pressureBefore=%.6f pressureAfter=%.6f multiplier=%.6f",
+                        + "pressureBefore=%.6f pressureAfter=%.6f multiplier=%.6f "
+                        + "nearbyMobCount=%d crowdingMultiplier=%.6f "
+                        + "effectivePressureGain=%.6f",
                 mobIdentifier,
                 key.getDimension(),
                 key.getChunkX(),
@@ -69,7 +71,10 @@ final class DeathDebugLogger {
                 calculation.getAdjustedXp(),
                 calculation.getPressureBefore(),
                 calculation.getPressureAfter(),
-                calculation.getMultiplier()
+                calculation.getMultiplier(),
+                calculation.getNearbyMobCount(),
+                calculation.getCrowdingMultiplier(),
+                calculation.getEffectivePressureGain()
         );
     }
 

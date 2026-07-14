@@ -1,8 +1,10 @@
 package com.mahghuuuls.chunkxpfatigue.forge;
 
+import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityLiving;
 import net.minecraft.init.Bootstrap;
 import net.minecraft.profiler.Profiler;
+import net.minecraft.util.math.AxisAlignedBB;
 import net.minecraft.world.GameType;
 import net.minecraft.world.World;
 import net.minecraft.world.WorldProvider;
@@ -14,7 +16,10 @@ import net.minecraft.world.chunk.IChunkProvider;
 import net.minecraft.world.storage.WorldInfo;
 import org.junit.jupiter.api.Test;
 
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -40,8 +45,80 @@ class CrowdingSamplerTest {
         world.addMob(16.0D, 0.0D, 0.0D);
 
         assertEquals(1, new CrowdingSampler().countNearby(source, 3.0D));
+        assertEquals(1, world.getEntityQueryCount());
         assertTrue(world.getChunkChecks() > world.getChunkRequests());
         assertEquals(0, world.getUnloadedChunkRequests());
+    }
+
+    @Test
+    void maximumRadiusDenseChunkCornerHasBoundedStructureAndRecordsPerformance() {
+        QueryWorld world = new QueryWorld();
+        TestMob dyingMob = world.addMob(16.0D, 64.0D, 16.0D);
+        for (int i = 0; i < 200; ++i) {
+            double angle = 2.0D * Math.PI * i / 200.0D;
+            double horizontalRadius = 1.0D + (i % 8) * 0.75D;
+            double yOffset = (i % 5 - 2) * 0.5D;
+            world.addMob(
+                    16.0D + Math.cos(angle) * horizontalRadius,
+                    64.0D + yOffset,
+                    16.0D + Math.sin(angle) * horizontalRadius
+            );
+        }
+
+        CrowdingSampler sampler = new CrowdingSampler();
+        for (int i = 0; i < 100; ++i) {
+            sampler.countNearby(dyingMob, 8.0D);
+        }
+
+        world.resetEntityQueryCount();
+        long[] singleSamples = new long[101];
+        int sampledCount = 0;
+        for (int i = 0; i < singleSamples.length; ++i) {
+            long start = System.nanoTime();
+            sampledCount = sampler.countNearby(dyingMob, 8.0D);
+            singleSamples[i] = System.nanoTime() - start;
+        }
+        assertEquals(200, sampledCount);
+        assertEquals(singleSamples.length, world.getEntityQueryCount());
+
+        long[] orderedSamples = singleSamples.clone();
+        Arrays.sort(orderedSamples);
+        long medianNanos = orderedSamples[orderedSamples.length / 2];
+        long maximumNanos = orderedSamples[orderedSamples.length - 1];
+
+        world.resetEntityQueryCount();
+        long batchStart = System.nanoTime();
+        for (int i = 0; i < 20; ++i) {
+            assertEquals(200, sampler.countNearby(dyingMob, 8.0D));
+        }
+        long batchNanos = System.nanoTime() - batchStart;
+        boolean thresholdsEnforced = Boolean.getBoolean(
+                "chunkxpfatigue.enforceCrowdingPerformance");
+
+        System.out.println(String.format(
+                Locale.ROOT,
+                "Crowding stress java=%s os=%s/%s warmup=100 totalLiveMobs=201 nearby=200 "
+                        + "radius=8.0 singleSamples=%d medianMs=%.6f maxMs=%.6f "
+                        + "batchSamples=20 batchMs=%.6f loadedChunks=%d "
+                        + "thresholdsEnforced=%s",
+                System.getProperty("java.version"),
+                System.getProperty("os.name"),
+                System.getProperty("os.arch"),
+                singleSamples.length,
+                medianNanos / 1_000_000.0D,
+                maximumNanos / 1_000_000.0D,
+                batchNanos / 1_000_000.0D,
+                world.getLoadedChunkCount(),
+                thresholdsEnforced
+        ));
+
+        assertEquals(20, world.getEntityQueryCount());
+        assertEquals(0, world.getUnloadedChunkRequests());
+        if (thresholdsEnforced) {
+            assertTrue(medianNanos < 5_000_000L, "median sample exceeded 5 ms");
+            assertTrue(maximumNanos < 50_000_000L, "single sample reached 50 ms");
+            assertTrue(batchNanos < 50_000_000L, "20-sample batch reached 50 ms");
+        }
     }
 
     @Test
@@ -94,6 +171,7 @@ class CrowdingSamplerTest {
         private int chunkChecks;
         private int chunkRequests;
         private int unloadedChunkRequests;
+        private int entityQueryCount;
 
         private QueryWorld() {
             super(
@@ -155,6 +233,15 @@ class CrowdingSamplerTest {
             return chunk;
         }
 
+        @Override
+        public <T extends Entity> List<T> getEntitiesWithinAABB(
+                Class<? extends T> entityType,
+                AxisAlignedBB boundingBox
+        ) {
+            ++entityQueryCount;
+            return super.getEntitiesWithinAABB(entityType, boundingBox);
+        }
+
         private int getChunkChecks() {
             return chunkChecks;
         }
@@ -165,6 +252,18 @@ class CrowdingSamplerTest {
 
         private int getUnloadedChunkRequests() {
             return unloadedChunkRequests;
+        }
+
+        private int getEntityQueryCount() {
+            return entityQueryCount;
+        }
+
+        private void resetEntityQueryCount() {
+            entityQueryCount = 0;
+        }
+
+        private int getLoadedChunkCount() {
+            return chunks.size();
         }
     }
 

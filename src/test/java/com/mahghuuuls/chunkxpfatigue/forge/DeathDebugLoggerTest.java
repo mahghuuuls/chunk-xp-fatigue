@@ -16,8 +16,11 @@ class DeathDebugLoggerTest {
                 10,
                 5,
                 50.0D,
-                51.0D,
-                0.5D
+                52.0D,
+                0.5D,
+                8,
+                2.0D,
+                2.0D
         );
 
         String line = DeathDebugLogger.format("minecraft:zombie", key, calculation);
@@ -25,7 +28,9 @@ class DeathDebugLoggerTest {
         assertEquals(
                 "XP fatigue mob=minecraft:zombie dimension=-1 chunk=(12,-7) "
                         + "inputXp=10 adjustedXp=5 pressureBefore=50.000000 "
-                        + "pressureAfter=51.000000 multiplier=0.500000",
+                        + "pressureAfter=52.000000 multiplier=0.500000 "
+                        + "nearbyMobCount=8 crowdingMultiplier=2.000000 "
+                        + "effectivePressureGain=2.000000",
                 line
         );
     }

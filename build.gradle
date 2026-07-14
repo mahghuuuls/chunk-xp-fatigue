@@ -269,6 +269,10 @@ test {
             showStandardStreams = true
         }
     }
+    if (project.hasProperty('enforce_crowding_performance')) {
+        systemProperty 'chunkxpfatigue.enforceCrowdingPerformance',
+                project.property('enforce_crowding_performance')
+    }
 }
 
 tasks.register('generateMixinJson') {
