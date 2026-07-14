@@ -42,9 +42,16 @@ public final class LivingXpHandler {
         if (!store.isWritable()) {
             return;
         }
-        FatigueCalculation calculation = fatigueService.process(store, key, payableXp);
-        event.setDroppedExperience(calculation.getAdjustedXp());
+        FatigueCalculation calculation = apply(event, store, key);
         debugLogger.log(entity, key, calculation);
+    }
+
+    FatigueCalculation apply(LivingExperienceDropEvent event, PressureStore store,
+                             ChunkPressureKey key) {
+        FatigueCalculation calculation = fatigueService.process(
+                store, key, event.getDroppedExperience());
+        event.setDroppedExperience(calculation.getAdjustedXp());
+        return calculation;
     }
 
     static boolean shouldProcess(boolean remoteWorld, boolean playerEntity, int payableXp) {
