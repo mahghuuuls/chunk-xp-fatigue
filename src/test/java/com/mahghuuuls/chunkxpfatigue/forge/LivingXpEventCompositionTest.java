@@ -38,6 +38,22 @@ class LivingXpEventCompositionTest {
         assertEquals(EventPriority.LOWEST, subscription.priority());
     }
 
+    @Test
+    void crowdingChangesPressureGainWithoutChangingCurrentXpComposition() {
+        ValidatedFatigueConfig config = ValidatedFatigueConfig.validate(
+                1.0D, 100.0D, 3.0D, 20.0D, 10.0D,
+                new String[]{"20:100", "100:10"}, false, false);
+        LivingXpHandler handler = new LivingXpHandler(config);
+        MemoryStore store = new MemoryStore(60.0D);
+        LivingExperienceDropEvent event = new LivingExperienceDropEvent(null, null, 20);
+
+        event.setDroppedExperience(10);
+        handler.apply(event, store, new ChunkPressureKey(0, 0, 0), 8);
+
+        assertEquals(5, event.getDroppedExperience());
+        assertEquals(62.0D, store.pressure, 0.0D);
+    }
+
     private static final class MemoryStore implements PressureStore {
         private double pressure;
         private MemoryStore(double pressure) { this.pressure = pressure; }

@@ -106,6 +106,46 @@ class XpFatigueServiceTest {
         assertEquals(61.0D, store.getPressure(key), 0.0D);
     }
 
+    @Test
+    void crowdingAcceleratesOnlyPostXpPressureGain() {
+        XpFatigueService service = new XpFatigueService(defaultConfig());
+
+        FatigueCalculation isolated = service.calculate(7, 60.0D, 0);
+        FatigueCalculation crowded = service.calculate(7, 60.0D, 8);
+
+        assertEquals(isolated.getAdjustedXp(), crowded.getAdjustedXp());
+        assertEquals(isolated.getMultiplier(), crowded.getMultiplier(), 0.0D);
+        assertEquals(61.0D, isolated.getPressureAfter(), 0.0D);
+        assertEquals(62.0D, crowded.getPressureAfter(), 0.0D);
+        assertEquals(8, crowded.getNearbyMobCount());
+        assertEquals(2.0D, crowded.getCrowdingMultiplier(), 0.0D);
+        assertEquals(2.0D, crowded.getEffectivePressureGain(), 0.0D);
+    }
+
+    @Test
+    void crowdedGainStillObeysMaximumPressure() {
+        XpFatigueService service = new XpFatigueService(defaultConfig());
+
+        FatigueCalculation crowded = service.calculate(5, 99.0D, 16);
+
+        assertEquals(100.0D, crowded.getPressureAfter(), 0.0D);
+        assertEquals(4.0D, crowded.getCrowdingMultiplier(), 0.0D);
+        assertEquals(4.0D, crowded.getEffectivePressureGain(), 0.0D);
+    }
+
+    @Test
+    void processPersistsAcceleratedGainForNearbyCount() {
+        XpFatigueService service = new XpFatigueService(defaultConfig());
+        InMemoryPressureStore store = new InMemoryPressureStore();
+        ChunkPressureKey key = new ChunkPressureKey(0, 4, -2);
+
+        FatigueCalculation result = service.process(store, key, 5, 5);
+
+        assertEquals(5, result.getAdjustedXp());
+        assertEquals(1.25D, result.getPressureAfter(), 0.0D);
+        assertEquals(1.25D, store.getPressure(key), 0.0D);
+    }
+
     private static ValidatedFatigueConfig defaultConfig() {
         return ValidatedFatigueConfig.validate(
                 1.0D,

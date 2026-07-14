@@ -20,12 +20,21 @@ public final class LivingXpHandler {
     private final double recoveryMinutesPerPressure;
     private final double maximumPressure;
     private final DeathDebugLogger debugLogger;
+    private final CrowdingSnapshotCache crowdingSnapshots;
 
     public LivingXpHandler(ValidatedFatigueConfig config) {
+        this(config, new CrowdingSnapshotCache());
+    }
+
+    public LivingXpHandler(
+            ValidatedFatigueConfig config,
+            CrowdingSnapshotCache crowdingSnapshots
+    ) {
         this.fatigueService = new XpFatigueService(config);
         this.recoveryMinutesPerPressure = config.getRecoveryMinutesPerPressure();
         this.maximumPressure = config.getMaximumPressure();
         this.debugLogger = new DeathDebugLogger(config.isDebugLoggingEnabled());
+        this.crowdingSnapshots = crowdingSnapshots;
     }
 
     @SubscribeEvent(priority = EventPriority.LOWEST)
@@ -37,19 +46,29 @@ public final class LivingXpHandler {
             return;
         }
 
+        int nearbyMobCount = crowdingSnapshots.take(entity);
         ChunkPressureKey key = keyFor(entity);
         PressureStore store = PressureWorldData.get(world, recoveryMinutesPerPressure, maximumPressure);
         if (!store.isWritable()) {
             return;
         }
-        FatigueCalculation calculation = apply(event, store, key);
+        FatigueCalculation calculation = apply(event, store, key, nearbyMobCount);
         debugLogger.log(entity, key, calculation);
     }
 
     FatigueCalculation apply(LivingExperienceDropEvent event, PressureStore store,
                              ChunkPressureKey key) {
+        return apply(event, store, key, 0);
+    }
+
+    FatigueCalculation apply(
+            LivingExperienceDropEvent event,
+            PressureStore store,
+            ChunkPressureKey key,
+            int nearbyMobCount
+    ) {
         FatigueCalculation calculation = fatigueService.process(
-                store, key, event.getDroppedExperience());
+                store, key, event.getDroppedExperience(), nearbyMobCount);
         event.setDroppedExperience(calculation.getAdjustedXp());
         return calculation;
     }
