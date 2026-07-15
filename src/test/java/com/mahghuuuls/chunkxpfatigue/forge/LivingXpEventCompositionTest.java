@@ -16,7 +16,7 @@ class LivingXpEventCompositionTest {
     void scalesCurrentPayableXpAfterCompatiblePriorHandler() {
         ValidatedFatigueConfig config = ValidatedFatigueConfig.validate(
                 1.0D, 100.0D, 3.0D, 20.0D, 10.0D,
-                new String[]{"20:100", "100:10"}, false, false);
+                new String[]{"20:100", "100:10"}, false);
         LivingXpHandler handler = new LivingXpHandler(config);
         MemoryStore store = new MemoryStore(60.0D);
         LivingExperienceDropEvent event = new LivingExperienceDropEvent(null, null, 20);
@@ -42,7 +42,7 @@ class LivingXpEventCompositionTest {
     void crowdingChangesPressureGainWithoutChangingCurrentXpComposition() {
         ValidatedFatigueConfig config = ValidatedFatigueConfig.validate(
                 1.0D, 100.0D, 3.0D, 20.0D, 10.0D,
-                new String[]{"20:100", "100:10"}, false, false);
+                new String[]{"20:100", "100:10"}, false);
         LivingXpHandler handler = new LivingXpHandler(config);
         MemoryStore store = new MemoryStore(60.0D);
         LivingExperienceDropEvent event = new LivingExperienceDropEvent(null, null, 20);

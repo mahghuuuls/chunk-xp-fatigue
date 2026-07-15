@@ -57,10 +57,6 @@ public final class FatigueConfig {
     public static double maximumCrowdingMultiplier =
             ValidatedFatigueConfig.DEFAULT_MAXIMUM_CROWDING_MULTIPLIER;
 
-    @Config.Comment("Show current chunk pressure and XP multiplier to compatible modded clients.")
-    @Config.RequiresWorldRestart
-    public static boolean debugOverlayEnabled = false;
-
     @Config.Comment("Log qualifying mob-death XP and pressure calculations on the server.")
     @Config.RequiresWorldRestart
     public static boolean debugLoggingEnabled = false;
@@ -81,7 +77,6 @@ public final class FatigueConfig {
                 crowdingAllowance,
                 crowdingBonusPerExcessMob,
                 maximumCrowdingMultiplier,
-                debugOverlayEnabled,
                 debugLoggingEnabled
         );
     }

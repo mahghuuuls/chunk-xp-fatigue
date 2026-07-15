@@ -40,7 +40,6 @@ public final class ValidatedFatigueConfig {
     private final int crowdingAllowance;
     private final double crowdingBonusPerExcessMob;
     private final double maximumCrowdingMultiplier;
-    private final boolean debugOverlayEnabled;
     private final boolean debugLoggingEnabled;
     private final List<String> warnings;
     private final List<String> errors;
@@ -57,7 +56,6 @@ public final class ValidatedFatigueConfig {
             int crowdingAllowance,
             double crowdingBonusPerExcessMob,
             double maximumCrowdingMultiplier,
-            boolean debugOverlayEnabled,
             boolean debugLoggingEnabled,
             List<String> warnings,
             List<String> errors
@@ -73,7 +71,6 @@ public final class ValidatedFatigueConfig {
         this.crowdingAllowance = crowdingAllowance;
         this.crowdingBonusPerExcessMob = crowdingBonusPerExcessMob;
         this.maximumCrowdingMultiplier = maximumCrowdingMultiplier;
-        this.debugOverlayEnabled = debugOverlayEnabled;
         this.debugLoggingEnabled = debugLoggingEnabled;
         this.warnings = Collections.unmodifiableList(new ArrayList<String>(warnings));
         this.errors = Collections.unmodifiableList(new ArrayList<String>(errors));
@@ -91,7 +88,6 @@ public final class ValidatedFatigueConfig {
             int crowdingAllowance,
             double crowdingBonusPerExcessMob,
             double maximumCrowdingMultiplier,
-            boolean debugOverlayEnabled,
             boolean debugLoggingEnabled
     ) {
         List<String> warnings = new ArrayList<String>();
@@ -164,7 +160,6 @@ public final class ValidatedFatigueConfig {
                 effectiveCrowdingAllowance,
                 effectiveCrowdingBonus,
                 effectiveMaximumCrowdingMultiplier,
-                debugOverlayEnabled,
                 debugLoggingEnabled,
                 warnings,
                 errors
@@ -178,7 +173,6 @@ public final class ValidatedFatigueConfig {
             double graceThresholdPercent,
             double minimumMultiplierPercent,
             String[] curvePoints,
-            boolean debugOverlayEnabled,
             boolean debugLoggingEnabled
     ) {
         return validate(
@@ -193,7 +187,6 @@ public final class ValidatedFatigueConfig {
                 DEFAULT_CROWDING_ALLOWANCE,
                 DEFAULT_CROWDING_BONUS_PER_EXCESS_MOB,
                 DEFAULT_MAXIMUM_CROWDING_MULTIPLIER,
-                debugOverlayEnabled,
                 debugLoggingEnabled
         );
     }
@@ -281,10 +274,6 @@ public final class ValidatedFatigueConfig {
 
     public double getMaximumCrowdingMultiplier() {
         return maximumCrowdingMultiplier;
-    }
-
-    public boolean isDebugOverlayEnabled() {
-        return debugOverlayEnabled;
     }
 
     public boolean isDebugLoggingEnabled() {

@@ -79,7 +79,6 @@ class CrowdingAccelerationTest {
                 allowance,
                 bonus,
                 maximumMultiplier,
-                false,
                 false
         );
     }

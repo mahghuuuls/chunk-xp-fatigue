@@ -55,7 +55,6 @@ class XpFatigueServiceTest {
                 20.0D,
                 10.0D,
                 new String[]{"20:100", "100:20"},
-                false,
                 false
         );
         XpFatigueService service = new XpFatigueService(config);
@@ -75,7 +74,6 @@ class XpFatigueServiceTest {
                 20.0D,
                 0.0D,
                 new String[]{"20:100", "100:0"},
-                false,
                 false
         );
         XpFatigueService service = new XpFatigueService(config);
@@ -154,7 +152,6 @@ class XpFatigueServiceTest {
                 20.0D,
                 10.0D,
                 new String[]{"20:100", "100:10"},
-                false,
                 false
         );
     }

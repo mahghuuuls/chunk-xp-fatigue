@@ -4,9 +4,16 @@ import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ValidatedFatigueConfigTest {
+
+    @Test
+    void fileFacingConfigurationHasNoOverlaySetting() {
+        assertThrows(NoSuchFieldException.class,
+                () -> FatigueConfig.class.getDeclaredField("debugOverlayEnabled"));
+    }
 
     @Test
     void defaultValuesProduceApprovedCurve() {
@@ -17,7 +24,6 @@ class ValidatedFatigueConfigTest {
         assertEquals(0.10D, config.getXpCurve().multiplierAt(1.0D), 0.000001D);
         assertTrue(config.getWarnings().isEmpty());
         assertTrue(config.getErrors().isEmpty());
-        assertFalse(config.isDebugOverlayEnabled());
         assertFalse(config.isDebugLoggingEnabled());
         assertTrue(config.isCrowdingEnabled());
         assertEquals(3.0D, config.getCrowdingRadius(), 0.0D);
@@ -35,7 +41,6 @@ class ValidatedFatigueConfigTest {
                 150.0D,
                 -5.0D,
                 new String[]{"100:100"},
-                true,
                 true
         );
 
@@ -46,7 +51,6 @@ class ValidatedFatigueConfigTest {
         assertEquals(0.0D, config.getMinimumMultiplier(), 0.0D);
         assertEquals(5, config.getWarnings().size());
         assertTrue(config.getErrors().isEmpty());
-        assertTrue(config.isDebugOverlayEnabled());
         assertTrue(config.isDebugLoggingEnabled());
     }
 
@@ -59,7 +63,6 @@ class ValidatedFatigueConfigTest {
                 40.0D,
                 30.0D,
                 new String[]{"80:40", "70:30"},
-                false,
                 false
         );
 
@@ -81,7 +84,6 @@ class ValidatedFatigueConfigTest {
                 20.0D,
                 10.0D,
                 new String[]{"60:70", "100:10"},
-                false,
                 false
         );
 
@@ -104,7 +106,6 @@ class ValidatedFatigueConfigTest {
                 7,
                 0.375D,
                 6.5D,
-                false,
                 false
         );
 
@@ -130,7 +131,6 @@ class ValidatedFatigueConfigTest {
                 101,
                 -0.5D,
                 Double.POSITIVE_INFINITY,
-                false,
                 false
         );
 
@@ -261,7 +261,6 @@ class ValidatedFatigueConfigTest {
                 allowance,
                 bonus,
                 maximumMultiplier,
-                false,
                 false
         );
     }
@@ -274,7 +273,6 @@ class ValidatedFatigueConfigTest {
                 20.0D,
                 10.0D,
                 new String[]{"20:100", "100:10"},
-                false,
                 false
         );
     }
