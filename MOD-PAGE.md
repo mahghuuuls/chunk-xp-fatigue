@@ -21,8 +21,6 @@ With the default settings:
 - Recovery removes `1` pressure every `3` minutes of server uptime. A chunk at `100` pressure returns to the full-XP threshold after `4` hours and reaches zero after `5` hours if no new pressure is added.
 - Crowding Acceleration is enabled with a `3`-block radius. The first `4` nearby live mobs add no bonus; each additional mob adds `25%` of the base pressure gain, capped at `4x` gain.
 
-[View the default isolated-kill XP curve on Desmos](https://www.desmos.com/calculator/a2z2zpr1xi). In this graph, `x` is the number of earlier qualifying mob deaths and `y` is the XP percentage. It assumes `1` pressure per death, no recovery between deaths, and no Crowding Acceleration.
-
 ## Configuration and Diagnostics
 
 Server and modpack owners can configure pressure gain, maximum pressure, recovery, the full-XP Grace Range, the XP curve, minimum multiplier, and Crowding Acceleration. Crowding radius, ordinary-group allowance, per-mob bonus, and maximum acceleration are independently configurable.
